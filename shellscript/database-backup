@@ -1,0 +1,35 @@
+#!/bin/sh
+DATE=`date +%Y-%m-%d-%H`
+RM_DATE=`date -d '-1 day' +%Y-%m-%d`
+DIR=/home/ubuntu/glitch
+
+echo "Taking Dump for $DATE ..."
+
+for i in 'postgres'
+do
+
+docker exec -i  glitch-postgres-1 /bin/bash -c "PGPASSWORD=postgres pg_dump --username postgres -p 5432 $i" > $DIR/$i-$DATE-pgdump.sql
+
+aws s3 cp $DIR/$i-$DATE-pgdump.sql s3://dev-postgres-databackup/glitchtip/
+
+DAY=`date +%d`
+HOUR=`date +%H`
+
+if [ "$DAY" -eq "01" -a  $HOUR -eq "00" ];
+then
+        echo "Pushing a monthly dump to s3"
+        aws s3 cp $DIR/$i-$DATE-pgdump.sql s3://dev-postgres-databackup/glitchtip/
+else
+        echo "Will push at end of the month"
+fi
+
+if ls $DIR/$i-$RM_DATE* > /dev/null 2<&1
+then
+   echo "Deleting Dump of $RM_DATE"
+   rm $DIR/$i-$RM_DATE*
+else
+   ls $DIR/$i-$RM_DATE*
+   echo "No Dump Found for $DIR/$i-$RM_DATE"
+fi
+
+done
