@@ -1,0 +1,232 @@
+properties([
+    parameters([
+        string(defaultValue: 'main', description: 'Please select Branch to Deploy', name: 'BRANCH'),
+        [$class: 'ChoiceParameter', 
+            choiceType: 'PT_SINGLE_SELECT', 
+            description: 'Please Select Environment', 
+            filterLength: 1, 
+            filterable: false, 
+            name: 'ENVIRONMENT', 
+            randomName: 'choice-parameter-2004420925529631', 
+            script: [$class: 'GroovyScript',
+                fallbackScript: [classpath: [],
+                sandbox: false, script: ''], 
+                script: [classpath: [], 
+                    sandbox: false, 
+                    script: '''return ["test-ui","dev-ui","qa-main","stage-ui","prod-ui"]'''
+                ]
+            ]
+        ], 
+        [$class: 'DynamicReferenceParameter',
+            choiceType: 'ET_FORMATTED_HTML', 
+            name: 'config', 
+            omitValueField: true, 
+            randomName: 'choice-parameter-2004420931957489',
+            referencedParameters: 'ENVIRONMENT', 
+            script: [$class: 'GroovyScript',
+                fallbackScript: [classpath: [],
+                sandbox: false, 
+                script: ''], 
+                script: [classpath: [],
+                sandbox: false, 
+                script: '''if (ENVIRONMENT.equals("prod-ui")){
+inputBox="""<textarea name=\'value\' class=\'setting-input\' type=\'text\' rows="10" cols="10">
+NEXT_PUBLIC_BASE_URL=https://api.kenkohealth.in
+NEXT_PUBLIC_GOOGLE_ANALYTICS=G-5CZ2DZYD1B
+NEXT_PUBLIC_BASE_URL_2=https://api.kenkohealth.in
+NEXT_PUBLIC_BASE_PAYMENT_URL= https://payment-v2.kenkohealth.in
+NEXT_PUBLIC_GTM=GTM-5VFW3LT
+</textarea>"""
+return inputBox
+}
+else {
+inputBox="""<textarea name=\'value\' class=\'setting-input\' type=\'text\' rows="10" cols="10">
+NEXT_PUBLIC_BASE_URL=https://dev2.api.kenkohealth.in
+NEXT_PUBLIC_GOOGLE_ANALYTICS=G-YF43Y3063K
+NEXT_PUBLIC_BASE_URL_2=https://dev3.api.kenkohealth.in
+NEXT_PUBLIC_BASE_PAYMENT_URL= https://dev2.payment-v2.kenkohealth.in
+NEXT_PUBLIC_GTM=GTM-K93L6TH
+</textarea>"""
+  return inputBox
+}'''
+                ]
+            ]
+        ]
+    ])
+])
+
+
+//Get user name in slack
+def build_user
+def get_build_user() {
+    script {
+    wrap([$class: 'BuildUser']) {
+        env.build_user = env.BUILD_USER_ID
+    }
+    return build_user
+    }
+}
+def Report
+env.DATE =  String.format('%tF %<tH:%<tM', java.time.LocalDateTime.now())
+//Select Slack channel according to environment
+def channel
+def slack_channel(){
+    if (env.ENVIRONMENT == 'prod-ui') {
+        channel = 'prod-deployments'
+        }
+    else {
+        channel = 'dev-deployment'
+        }
+    return channel
+}
+
+
+
+pipeline {
+    agent {
+        label {
+            label "ECR"
+            customWorkspace "/home/ubuntu/FE-hrportal/"
+        }
+    }
+    environment {
+        build_user = get_build_user()
+        channel = slack_channel()
+        dockerImage = ''
+        registry = "729906147398.dkr.ecr.ap-south-1.amazonaws.com/fe-hrportal"
+    }
+    stages {
+         stage('Approval'){
+            options {
+                timeout(time: 600, unit: "SECONDS")
+            }
+            when {
+                environment name: 'ENVIRONMENT', value: 'prod-ui'
+            }
+            steps {
+                echo "Pulling code from ${env.BRANCH} branch on ${env.ENVIRONMENT}"
+                script {
+                    echo "*********** Triggered by ${env.build_user} ***********"
+                    if ( build_user == 'jatin' || build_user == 'abhisek'){
+                        echo "Skipping Approval because ${build_user} has Approval access"
+                    }
+                    else {
+                        slackSend channel: "${env.channel}",color: 'good', message: "'${env.JOB_NAME}' || ${env.build_user} wants to deploy  ${env.BRANCH} branch on ${env.ENVIRONMENT}. \napprove: https://jenkins.kenkohealth.in/job/${JOB_NAME}/${BUILD_NUMBER}/input"
+                        def userName = input message: 'Please approve to proceed further', submitterParameter: 'USER'
+                        if ( userName == 'ponnaveen' || userName == 'dhanraj' || userName == 'sanathk' || userName == 'tanveer' || userName == 'himadri') {
+                            echo "Approved By ${userName} "
+                        }
+                        else {
+                            currentBuild.result = 'ABORTED'
+                            error("Approver is not admin")
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Pull Code'){
+            steps{
+                echo "Pulling code from ${env.BRANCH} branch."
+                git branch: "${env.BRANCH}", credentialsId: 'kenkoadmin', url: 'https://github.com/Kenko-Health/kenko-hr.git'
+                echo "Writting Env files"
+                sh ''' echo "COMMIT_ID = `git rev-parse HEAD`\nBRANCH = `git rev-parse --abbrev-ref HEAD`\nDATE = `date`" > git.info '''
+                script {
+              env.Report = "${env.build_user}  ::   ${env.BRANCH}  ::  ${DATE}"
+              if (env.ENVIRONMENT == 'prod-ui') {
+                  sh """
+                  echo "NODE_ENV=production" > .env
+                  echo "${config}" > .env.production
+                  """
+              }
+              else {
+                  sh """
+                  echo "NODE_ENV=development" > .env
+                  echo "${config}" > .env.production
+                  """
+              }
+          }
+                
+            }
+        }
+        stage("Push to repo"){
+        steps{
+            script {
+                echo "*********** Building Image ***********"
+                if (env.ENVIRONMENT == 'prod-ui') {
+                    dockerImage = docker.build registry + ":prod_${BUILD_NUMBER}"
+                }
+                else {
+                    dockerImage = docker.build registry + ":dev_${BUILD_NUMBER}"
+                }
+                echo "*********** Pushing Image to Registry ***********"
+                docker.withRegistry('https://729906147398.dkr.ecr.ap-south-1.amazonaws.com', 'ecr:ap-south-1:aws-credential') {
+                    dockerImage.push()
+                }
+                env.Report = "${env.build_user}  ::   ${env.BRANCH}  "
+            }
+        }
+    }
+        
+        stage("Pull configuration"){
+            agent {
+                label {
+                    label "${env.ENVIRONMENT}"
+                    customWorkspace "/home/ubuntu/workspace/FE-hrportal/"
+                }
+            }
+            steps{
+                sh """ pwd """
+                git branch: 'hrportal', credentialsId: 'kenkoadmin', url: 'https://github.com/Kenko-Health/kenko-config.git'
+                script{
+                    if (env.ENVIRONMENT == 'prod-ui') {
+                        sh """ echo  "BUILD_NUMBER=prod_${BUILD_NUMBER}" > .env  """
+                    }
+                    else {
+                        sh """ echo  "BUILD_NUMBER=dev_${BUILD_NUMBER}" > .env  """
+                    }
+                }
+            }
+        }
+        stage ("Deploy"){
+            agent {
+                label {
+                    label "${env.ENVIRONMENT}"
+                    customWorkspace "/home/ubuntu/workspace/FE-hrportal/"
+                }
+            }
+            steps{
+                script{
+                    docker.withRegistry('https://729906147398.dkr.ecr.ap-south-1.amazonaws.com', 'ecr:ap-south-1:aws-credential') {
+                    if (env.ENVIRONMENT == 'prod-ui') {
+                        sh """
+                            BUILD_NUMBER=prod_${BUILD_NUMBER}
+                            docker-compose up -d
+                        """
+                    }
+                    else {
+                         sh """
+                            BUILD_NUMBER=dev_${BUILD_NUMBER}
+                            docker-compose up -d
+                        """
+                    }
+                    }
+                }
+            }
+        }
+    }
+    post {
+        success {
+            slackSend channel: "${env.channel}",color: 'good', message: "SUCCESS: '${env.JOB_NAME}' || [${env.build_user}] deployed ${env.BRANCH} on ${env.ENVIRONMENT}. \n (https://jenkins.kenkohealth.in/job/${JOB_NAME}/${BUILD_NUMBER}/)"
+            addDeployToDashboard(env: params.ENVIRONMENT, buildNumber: env.Report)
+        }
+        failure  {
+            echo "Fail"
+            slackSend channel: "${env.channel}",color: 'red', message: "FAILED: '${env.JOB_NAME}' || [${env.build_user}] deployed ${env.BRANCH} on ${env.ENVIRONMENT}. \n (https://jenkins.kenkohealth.in/job/${JOB_NAME}/${BUILD_NUMBER}/)"
+        }
+        aborted  {
+            echo "Aborted"
+            slackSend channel: "${env.channel}",color: 'good', message: "ABORTED: '${env.JOB_NAME}' || [${env.build_user}] deployed ${env.BRANCH} on ${env.ENVIRONMENT}. \n (https://jenkins.kenkohealth.in/job/${JOB_NAME}/${BUILD_NUMBER}/)"
+        }
+    }
+}
