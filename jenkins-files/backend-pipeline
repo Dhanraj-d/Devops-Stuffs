@@ -1,0 +1,289 @@
+//Get user name in slack
+def build_user
+def get_build_user() {
+    script {
+    wrap([$class: 'BuildUser']) {
+        env.build_user = env.BUILD_USER_ID
+    }
+    return build_user
+    }
+}
+//Select Slack channel according to environment
+def channel
+def slack_channel(){
+    if (env.ENVIRONMENT == 'prod') {
+        channel = 'prod-deployments'
+        }
+    else {
+        channel = 'dev-deployment'
+        }
+    return channel
+}
+
+pipeline {
+    agent {
+        label {
+	          label "ECR-graviton"
+            customWorkspace "/home/ubuntu/kenko-web-eks-backend/${env.ENVIRONMENT}"
+        }
+    }
+    
+    environment {
+        dockerImage = ''
+        registry = "729906147398.dkr.ecr.ap-south-1.amazonaws.com/kenko-web-backend"
+        build_user = get_build_user()
+        channel = slack_channel()
+    }
+    
+    stages {
+        stage('Approval'){
+            options {
+                timeout(time: 600, unit: "SECONDS")
+            }
+            steps {
+                script {
+                    if (env.ENVIRONMENT == 'prod') {
+                        def cause = currentBuild.getBuildCauses('hudson.model.Cause$UserIdCause')
+                        slackSend channel: "${env.channel}" ,color: 'good', message: "'${env.JOB_NAME}' || ${cause.userName} wants to deploy ${env.TAG} tag on EKS-prod. \n approve: https://jenkins.kenkohealth.in/job/${JOB_NAME}/${BUILD_NUMBER}/input"
+                        def userName = input message: 'Do you want to Proceed ?', submitterParameter: 'USER'
+                        if ( userName == 'abhinav' || userName == 'rahul' || userName == 'shreyas' || userName == 'akshit' || userName == 'dhanraj' || userName == 'ponnaveen' || userName == 'abhishekp' || userName == 'hemasree' ) {
+                            echo "Approved By ${userName} "
+                        }
+                        else {
+                            currentBuild.result = 'ABORTED' 
+                            error("Approver is not admin")
+                        }
+                    }
+                    echo "env: ${ENVIRONMENT}\nns: ${NS_dev}${NS_prod}\nbr: ${env.BRANCH}\ntag: ${env.TAG}"
+                }
+            }
+        }
+        
+      stage('Pull Code') {
+    	  steps {
+          script{
+            if( env.ENVIRONMENT == "dev"){
+              echo "Pulling code from ${env.BRANCH} branch & deploy on EKS-dev ${env.NS_dev} ns."
+              echo "Connecting to ${env.DB_dev} db.."
+              git branch: "${env.BRANCH}", credentialsId: 'kenkoadmin', url: 'https://github.com/Kenko-Health/kenko-web-backend.git'
+              echo "Code Pulled from ${env.BRANCH} branch & deploy on EKS-dev ${env.NS_dev} ns."
+              if( env.NS_dev == "dev6"){
+                  sh """ echo "HUBSPOT_PROP=child_1_age, child_1_gender, child_1_name, child_1_date_of_birth, child_2_age, child_2_gender, child_2_name, child_2_date_of_birth, child_3_age, child_3_gender, child_3_name, child_3_date_of_birth, child_4_age, child_4_gender, child_4_name, child_4_date_of_birth, parent_1_age, parent_1_gender, parent_name, parent_1_date_of_birth, parent_2_age, parent_2_gender, parent_2_name, parent_2_date_of_birth, spouse_age,spouse_gender, spouse_name, spouse_date_of_birth, father_in-law_age,father_in-law_gender,father_in-law_name father_in-law_date_of_birth, mother_in-law_age,mother_in-law_gender,mother_in-law_name,mother_in-law_date_of_birth, plan_name, plan_details, plan_1_start_date, plan_1_end_date, plan_1_family_definition, child_policy_number, master_policy_number, self_member_id, plan_2_name, plan_2_details ,plan_2_start_date, plan_2_end_date, plan_2_family_definition, plan_2_child_policy_number, plan_2_master_policy_number, plan_2_self_member_id, employee_id, email, date_of_birth, contact_gender, contact_lifecycle, mobilephone, firstname, lastname, date___became_a_customer , date___became_a_subscriber, active_inactive, hs_lead_status, lead_type, company, hs_object_id" > .env  """
+              }
+            
+            }
+            else if( env.ENVIRONMENT == "prod"){
+              echo "Pulling code from ${env.TAG} tag & deploy on EKS-prod ${env.NS_prod} ns."
+              checkout([$class: 'GitSCM',  branches: [[name: "refs/tags/${env.TAG}"]], userRemoteConfigs: [[url: "https://github.com/Kenko-Health/kenko-web-backend", credentialsId: "kenkoadmin"]]])
+              echo "Code Pulled from ${env.TAG} tag & deploy on EKS-prod ${env.NS_prod} ns."
+              configFileProvider([
+                configFile(
+                    fileId: 'backend-prod-json',
+                    targetLocation: 'src/config/app/'
+                )
+              ])
+              { }
+              sh """ echo  "NODE_ENV=prod" > .env  """
+            }
+          }
+    	  }
+    	}
+    
+    stage("Push to ECR"){
+    	steps{
+    		script {
+				Date date = new Date()
+				echo "*********** Building ${env.ENVIRONMENT} Image ***********"
+				    				    
+				if( env.ENVIRONMENT == "dev" ){
+          dockerImage = docker.build registry + ":dev_${BUILD_NUMBER}"
+        }
+        else if( env.ENVIRONMENT == "prod" ){
+          dockerImage = docker.build registry + ":prod_${TAG}_${BUILD_NUMBER}"
+        }
+    				
+				echo "*********** Pushing Image to Registry ***********"
+				
+				docker.withRegistry('https://729906147398.dkr.ecr.ap-south-1.amazonaws.com', 'ecr:ap-south-1:aws-credential') {
+					dockerImage.push()
+    			}
+    		}
+    	}
+    }
+        
+    stage ("Deploy"){
+        steps{
+            dir('../devops') {
+                git branch: 'main', credentialsId: 'kenkoadmin', url: 'https://github.com/Kenko-Health/devops'
+                echo "Devops repo Pulled"
+            }
+            script {
+                if( env.ENVIRONMENT == "dev" ){
+                    //dir("../devops/eks/env/dev/${env.NS_dev}/deployment") {
+                    dir("../devops/argocd/dev/${env.NS_dev}/backend") {
+                        sh '''
+                            cat <<EOF > deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: $NS_dev
+  labels:
+    app: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: 729906147398.dkr.ecr.ap-south-1.amazonaws.com/kenko-web-backend:dev_${BUILD_NUMBER}
+          env:
+          - name: MONGO_HOST1
+            value: "devmongo1.kenkoprivate.in"
+          - name: MONGO_HOST2
+            value: "devmongo2.kenkoprivate.in"
+          - name: MONGO_HOST3
+            value: "devmongo3.kenkoprivate.in"
+          - name: DB_NAME
+            value: "$DB_dev"
+          - name: RABBITMQ_NS
+            value: "$NS_dev"
+          - name: NODE_ENV
+            value: "dev"
+          - name: MONGO_USERNAME
+            value: "devbackend"
+          - name: MONGO_PASSWORD
+            value: "jsch872hj78"
+          - name: NAMESPACE
+            value: "$NS_dev"
+          ports:
+          - containerPort: 8083	  
+                '''
+            }
+        }
+        else if( env.ENVIRONMENT == "prod" ){
+            dir("../devops/eks/env/prod/backend") {
+                sh '''
+                    cat <<EOF > deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: $NS_prod
+  labels:
+    app: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+        env: prod
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - backend
+            topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: backend
+          image: 729906147398.dkr.ecr.ap-south-1.amazonaws.com/kenko-web-backend:prod_${TAG}_${BUILD_NUMBER}
+          lifecycle:
+             preStop:
+               exec:
+                 command: ["sleep", "30"]	       
+          env:
+          - name: NODE_ENV
+            value: "prod"
+          - name: MONGO_USERNAME
+            value: "backenduser"
+          - name: MONGO_PASSWORD
+            value: "aJquVpzjQlFvBn"
+          livenessProbe:
+            httpGet:
+              path: /api/v1/healthCheck
+              port: 8083
+            timeoutSeconds: 5
+            failureThreshold: 5
+            periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /api/v1/healthCheck
+              port: 8083
+            initialDelaySeconds: 60
+            failureThreshold: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/v1/healthCheck
+              port: 8083
+            timeoutSeconds: 5
+            failureThreshold: 5
+            periodSeconds: 10
+          ports:
+          - containerPort: 8083
+      terminationGracePeriodSeconds: 60
+                '''
+                }
+            	}
+            }
+        }
+    }
+    stage ("Push to Flux repo"){
+      steps{
+        dir("../devops") {
+            script{
+                if( env.ENVIRONMENT == "dev"){
+                    sh '''
+                        git add -A && git commit -m "Image update to kenko-web-backend:dev_${BUILD_NUMBER}"
+                    '''
+                }
+                else if( env.ENVIRONMENT == "prod" ){
+                    sh '''
+                        git add -A && git commit -m "Image update to kenko-web-backend:prod_${TAG}_${BUILD_NUMBER}"
+                    '''
+                }
+            }
+            sh '''
+              set +x
+              git push https://kenkoadmin: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@github.com/Kenko-Health/devops.git
+            '''
+        }
+      }
+    }
+    }
+    post {
+        /*cleanup {
+            dir("${workspace}") {
+                deleteDir()
+            }
+            dir("${workspace}@tmp") {
+                deleteDir()
+            }
+        }*/
+        success {
+            slackSend channel: "${env.channel}",color: 'good', message: "SUCCESS: '${env.JOB_NAME}' || [${env.build_user}] deployed ${env.BRANCH}${env.TAG} on EKS-${env.ENVIRONMENT} ${env.NS_dev}${env.NS_prod} ns. \n (https://jenkins.kenkohealth.in/job/${JOB_NAME}/${BUILD_NUMBER}/)"
+            addDeployToDashboard(env: params.ENVIRONMENT, buildNumber: env.Report)
+        }
+        failure  {
+            slackSend channel: "${env.channel}",color: 'red', message: "FAILED: '${env.JOB_NAME}' || [${env.build_user}] deployed ${env.BRANCH}${env.TAG} on EKS-${env.ENVIRONMENT} ${env.NS_dev}${env.NS_prod} ns. \n(https://jenkins.kenkohealth.in/job/${JOB_NAME}/${BUILD_NUMBER}/)"
+        }
+        aborted  {
+            slackSend channel: "${env.channel}",color: 'good', message: "ABORTED: '${env.JOB_NAME}' || [${env.build_user}] aborted ${env.BRANCH}${env.TAG} on EKS-${env.ENVIRONMENT} ${env.NS_dev}${env.NS_prod} ns. \n(https://jenkins.kenkohealth.in/job/${JOB_NAME}/${BUILD_NUMBER}/)"
+        }
+    }
+}
