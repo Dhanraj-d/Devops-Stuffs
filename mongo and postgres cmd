@@ -1,0 +1,153 @@
+                                           Postgress db commands
+
+
+
+ docker exec -it 4610d5dd7d4a bash
+psql -U postgres
+\l                                     (to list the dbs)
+CREATE DATABASE dev1_plan;
+DROP DATABASE dev1_plan WITH (FORCE);
+grant all privileges on database dev1_plan to postgres;
+Truncate table "Order" CASCADE
+
+
+
+
+                 Postgress dump
+
+docker exec -i postgres /bin/bash -c "pg_dump --username postgres dev10_cashless" > dev10_cashless_1511.sql
+cat dev10_cashless_1511.sql | docker exec -i postgres psql -U postgres -d dev10_cashless
+docker cp file_name.sql postgres:/tmp
+docker exec -it postgres bash
+Cd /tmp
+cat dev10_cashless_1511.sql | psql -U postgres -d dev10_cashless
+
+
+RDS Postgres
+
+PGPASSWORD=Gltui4GGUQwJk/TYdwyxnG5H psql -h mb-pg-prod.cs5lqlbwyorh.ap-south-1.rds.amazonaws.com -p 5432 -U postgres -d postgres
+
+docker exec -i postgres /bin/bash -c "PGPASSWORD=UaTr0fMt24Jj psql -U postgres -p 5432 <DATABASE-TO-RESTORE>" < ./<DUMP-FILE>.sql
+
+
+
+-------------backup & restore entire db postgres---------
+To take db dump
+docker exec -i postgres /bin/bash -c "PGPASSWORD=UaTr0fMt24Jj pg_dump -U postgres -p 5432 <DATABASE-TO-DUMP>" > <DUMP-FILE>.sql
+
+To drop db
+docker exec -i postgres /bin/bash -c "PGPASSWORD=UaTr0fMt24Jj dropdb -h 0.0.0.0 -p 5432 -U postgres -f <DB-TO-DROP>"
+
+
+
+To create db
+docker exec -i postgres /bin/bash -c "PGPASSWORD=UaTr0fMt24Jj createdb -h 0.0.0.0 -p 5432 -U postgres <DB-to-CREATE>"
+
+
+To Restore db dump
+docker exec -i postgres /bin/bash -c "PGPASSWORD=UaTr0fMt24Jj psql -U postgres -p 5432 <DATABASE-TO-RESTORE>" < ./<DUMP-FILE>.sql
+RDS Connection string
+To connect
+psql -h kenko-prod-postgres.cs5lqlbwyorh.ap-south-1.rds.amazonaws.com -p 5432 -U postgres -d postgres
+i0Jh2lOQvcOPzci
+User creation
+create user user_name with encrypted password 'gqlpzbvasktlvc';
+GRANT pg_read_all_data TO user_name;
+GRANT pg_write_all_data TO user_name;
+DROP USER user_name;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO jerry;
+ALTER USER user_name WITH SUPERUSER;
+
+REVOKE ALL PRIVILEGES ON DATABASE db_name FROM username;
+
+CREATE ROLE paymentv2readonly; \c connect to db
+GRANT CONNECT ON DATABASE paymentv2 TO paymentv2readonly;
+GRANT USAGE ON SCHEMA public TO paymentv2readonly;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO paymentv2readonly;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO paymentv2readonly;
+Create user from outside
+CREATE USER paymentv2_readonly WITH PASSWORD '7egdcbwhwb87';
+GRANT paymentv2readonly TO paymentv2_readonly;
+
+
+To list table size of postgresql
+SELECT
+    table_schema || '.' || table_name AS table_full_name,
+    pg_size_pretty(pg_total_relation_size('"' || table_schema || '"."' || table_name || '"')) AS size
+FROM information_schema.tables
+ORDER BY
+    pg_total_relation_size('"' || table_schema || '"."' || table_name || '"') DESC;
+
+To Clear table 
+TRUNCATE performance_span;
+
+
+
+
+
+
+
+
+
+
+
+
+-------------backup & restore entire mongodb---------
+User creation for database
+docker exec -it mongohealthdata bash
+mongo --port 40083
+use admin
+show dbs
+db.createUser( { user: "dataengg",  pwd: "kenkodata43ew", roles: [ { role: "read",  db: "default" } ] });
+db.dropUser("ChiranJeev")
+
+      To take db dump of single standalone container
+     docker exec -i mongoscheduler mongodump --port 40061         --authenticationDatabase admin -u root -p n@dIWQO2J85kjS --archive    --gzip --db dev1 > dev1.gz
+
+      To restore db dump
+db.auth("kwb_root", "HbzLoQhaZmUnGbaI")
+
+docker exec -i mongoscheduler  mongorestore --port 40061 --authenticationDatabase admin -u root -p n@dIWQO2J85kjS  --nsFrom "dev1.*" --nsTo "dev2.*" --drop --gzip --archive < /home/ubuntu/mongodb/Microservices/scheduler/dev1.gz
+
+
+
+TO restore collection dump
+
+
+docker exec -i mongo1 mongoimport --port 40001 --username dev --password devteam --authenticationDatabase admin --drop --db dev2 --drop --collection entityOrderType < entityOrderType.json
+
+OPLOG status
+   To list deleted resources across collection
+   db.oplog.rs.distinct("ns", {"op":"d", "wall": {$gte:ISODate("2024-01-06T15:51:23.710Z") } });
+   To find the particular collection deletion any one 
+  db.oplog.rs.findOne({"ns":"default.leads","op":"d", "wall": {$gte: ISODate("2024-01-01T15:51:23.710Z") } });
+ To count the collection deletion
+db.oplog.rs.count({"ns":"default.leads","op":"d", "wall": {$gte: ISODate("2024-01-01T15:51:23.710Z") } });
+  
+
+
+
+
+
+
+
+
+To Build docker image
+
+
+1.docker build -t medblocks:v4 .
+2.docker run -d -p 8091:8091 medblocks:v4
+3. docker run --env-file .env -d -p 8000:8000 de-secured-mis-sharing:v8
+
+
+
+
+SSH Reverse tunnelling 
+
+
+ssh -f -N -R 0.0.0.0:40001:localhost:40001 -R 8022:127.0.0.1:22 ubuntu@sshtunnel.kenkohealth.in -g -o ServerAliveInterval=30 -o ServerAliveCountMax=1 -o ExitOnForwardFailure=yes
+
+To change wal level property  replica to logical in postgresql
+1. ALTER SYSTEM SET wal_level = logical;
+2. Restart the container
+3. show wal_level;
