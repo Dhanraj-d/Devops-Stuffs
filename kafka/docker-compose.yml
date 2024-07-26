@@ -1,0 +1,51 @@
+version: '3.1'
+services: 
+  my_dbzm:
+    image: 'debezium/connect:1.9.4.Final'
+    restart: always
+    hostname: my_dbzm
+    container_name: my_dbzm
+    ports:
+      - 9083:8083
+    environment:
+     - BOOTSTRAP_SERVERS=b-3.prodmsk.i5rnus.c4.kafka.ap-south-1.amazonaws.com:9096,b-1.prodmsk.i5rnus.c4.kafka.ap-south-1.amazonaws.com:9096,b-2.prodmsk.i5rnus.c4.kafka.ap-south-1.amazonaws.com:9096
+     - GROUP_ID=1
+     - CONFIG_STORAGE_TOPIC=connect_configs
+     - OFFSET_STORAGE_TOPIC=connect_offsets
+     - STATUS_STORAGE_TOPIC=connect_statuses
+     - KEY_CONVERTER=io.confluent.connect.avro.AvroConverter
+     - VALUE_CONVERTER=io.confluent.connect.avro.AvroConverter
+     - CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL=http://schema-registry:8081
+     - CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL=http://schema-registry:8081
+     - CONNECT_CONFIG_STORAGE_TOPIC=delete
+     - CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR=3
+     - CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR=3 
+     - CONNECT_STATUS_STORAGE_REPLICATION_FACTOR=3
+     - CONNECT_SASL_MECHANISM=SCRAM-SHA-512
+     - CONNECT_SECURITY_PROTOCOL=SASL_SSL
+     - CONNECT_SASL_JAAS_CONFIG=org.apache.kafka.common.security.scram.ScramLoginModule required username="AmazonMSK_DBZM" password="AmazonMSK_DBZM_password" ;
+     - CONNECT_CONSUMER_SECURITY_PROTOCOL=SASL_SSL
+     - CONNECT_CONSUMER_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM=https
+     - CONNECT_CONSUMER_SASL_MECHANISM=SCRAM-SHA-512
+     - CONNECT_CONSUMER_SASL_JAAS_CONFIG=org.apache.kafka.common.security.scram.ScramLoginModule required username="AmazonMSK_DBZM" password="AmazonMSK_DBZM_password" ;
+     - CONNECT_PRODUCER_SECURITY_PROTOCOL=SASL_SSL
+     - CONNECT_PRODUCER_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM=https
+     - CONNECT_PRODUCER_SASL_MECHANISM=SCRAM-SHA-512
+     - CONNECT_PRODUCER_SASL_JAAS_CONFIG=org.apache.kafka.common.security.scram.ScramLoginModule required username="AmazonMSK_DBZM" password="AmazonMSK_DBZM_password" ;
+    
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:5.5.3
+    restart: always
+    environment:
+      - SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL=z-1.prodmsk.i5rnus.c4.kafka.ap-south-1.amazonaws.com:2181,z-2.prodmsk.i5rnus.c4.kafka.ap-south-1.amazonaws.com:2181,z-3.prodmsk.i5rnus.c4.kafka.ap-south-1.amazonaws.com:2181
+      - SCHEMA_REGISTRY_HOST_NAME=schema-registry
+      - SCHEMA_REGISTRY_LISTENERS=http://schema-registry:8081,http://localhost:8081
+    ports:
+      - 8081:8081
+
+networks:
+  default:
+    name: mynet2
+    external: true
+
