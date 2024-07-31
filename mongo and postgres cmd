@@ -103,6 +103,10 @@ db.dropUser("ChiranJeev")
 
       To take db dump of single standalone container
      docker exec -i mongoscheduler mongodump --port 40061         --authenticationDatabase admin -u root -p n@dIWQO2J85kjS --archive    --gzip --db dev1 > dev1.gz
+      docker exec -i mongo1 mongodump --port 40001  --authenticationDatabase admin -u devbackend -p jsch872hj78 --archive    --gzip --db qa-main > dev2-23.gz
+# to check primary db
+docker exec -it mongo1 mongo --port 40001 mongo --eval "printjson(rs.isMaster().primary)"
+
 
       To restore db dump
 db.auth("kwb_root", "HbzLoQhaZmUnGbaI")
