@@ -1,0 +1,2 @@
+aws s3 cp orderdb-2024-07-21-00-pgdump.sql s3://kenko-data/order-db/ to download s3 files from s3 to ec2
+aws s3 cp ehrbase2.sql s3://medblocks-data-kenkohealth to push to s3
