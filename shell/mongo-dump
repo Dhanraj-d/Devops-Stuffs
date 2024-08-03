@@ -1,0 +1,30 @@
+#!/bin/sh
+URL=mongodb1.kenkoprivate.in
+DATE=`date +%Y-%m-%d-%H`
+RM_DATE=`date -d '-1 day' +%Y-%m-%d`
+P=/home/ubuntu/devops/DB_backup
+echo "Taking Dump for $DATE ..."
+/usr/bin/docker exec mongo1 sh -c 'exec mongodump --db default --port 40001 --authenticationDatabase admin -u kwb_root -p HbzLoQhaZmUnGbaI --gzip --archive' > $P/dump_$DATE.gz
+/usr/local/bin/aws s3 cp $P/dump_$DATE.gz s3://kenko-mongo-backup/DB_backup/DB_backend/
+
+DAY=`date +%d`
+HOUR=`date +%H`
+
+if [ "$DAY" -eq "01" -a  $HOUR -eq "00" ];
+then
+        echo "Pushing a monthly dump to s3"
+        aws s3 cp $P/dump_$DATE.gz s3://kenko-mongo-backup/Monthly_Backup/DB_backend/
+else
+        echo "Will push at end of the month"
+fi
+
+
+ls $P/dump_$RM_DATE*
+if ls $P/dump_$RM_DATE* > /dev/null 2<&1
+then
+        echo "Deleting Dump of $RM_DATE"
+        rm $P/dump_$RM_DATE*
+else
+        ls $P/dump_$RM_DATE*
+        echo "No Dump Found for $P/dump_$RM_DATE"
+fi
