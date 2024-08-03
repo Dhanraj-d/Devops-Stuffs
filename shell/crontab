@@ -1,0 +1,9 @@
+*/30 * * * * docker restart postgres
+0 */8 * * * bash  -x /home/ubuntu/wikijs/dump.sh
+*/30 * * * * docker restart payment-dev
+
+*/30 * * * * docker restart order-dev
+*/30 * * * * docker restart plan-dev
+*/30 * * * * docker restart cashless-dev
+
+*/30 * * * * docker restart diagnostic-dev
