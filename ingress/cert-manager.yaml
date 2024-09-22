@@ -1,0 +1,13 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: devargocd.kenkohealth.in
+  namespace: argocd
+spec:
+  secretName: devargocd.kenkohealth.in-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  commonName: devargocd.kenkohealth.in
+  dnsNames:
+  - devargocd.kenkohealth.in
