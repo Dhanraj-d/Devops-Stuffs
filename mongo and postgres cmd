@@ -157,3 +157,55 @@ To change wal level property  replica to logical in postgresql
 1. ALTER SYSTEM SET wal_level = logical;
 2. Restart the container
 3. show wal_level;
+
+
+
+
+
+
+
+
+
+
+
+
+Step 2: Grant Full Access to the Database
+To grant a user full access (all privileges) to the entire database, run the following command:
+
+GRANT ALL PRIVILEGES ON DATABASE mydatabase TO new_user_name;
+This gives the user full privileges (connect, create tables, etc.) for the database mydatabase.
+
+Step 3: Grant Full Access on Schema and Tables
+In addition to granting full privileges on the database, you also need to give the user access to the schema and tables. By default, the schema is usually named public.
+To give the user full access to all objects (tables, sequences) in the schema:
+
+
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO new_user_name;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO new_user_name;
+
+Step 4: Set Default Privileges (Optional)
+If you want to ensure that the user gets full privileges on any future tables or sequences created in the schema, use the following command:
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO new_user_name;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO new_user_name;
+
+
+Example Summary of Commands:
+
+GRANT ALL PRIVILEGES ON DATABASE mydatabase TO new_user_name;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO new_user_name;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO new_user_name;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO new_user_name;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO new_user_name;
+
+This set of commands will give the user full control over the database, schema, and tables.
+
+
+
+
+
+
+
+
+
+
