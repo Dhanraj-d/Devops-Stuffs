@@ -202,6 +202,36 @@ This set of commands will give the user full control over the database, schema, 
 
 
 
+GRANT CONNECT ON DATABASE swiper TO ls_stitch;
+
+
+
+
+
+GRANT SELECT ON TABLE chat_group_member TO ls_stitch;
+GRANT SELECT ON TABLE chat_group TO ls_stitch;
+GRANT SELECT ON TABLE chat_message TO ls_stitch;
+GRANT SELECT ON TABLE leap_user TO ls_stitch;
+GRANT SELECT ON TABLE chat_session TO ls_stitch;
+
+
+
+
+
+REVOKE ALL PRIVILEGES ON DATABASE leap_scholar FROM ls_stitch;
+REVOKE ALL PRIVILEGES ON SCHEMA public FROM ls_stitch;
+REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM ls_stitch;
+
+
+
+
+
+GRANT CONNECT ON DATABASE leap_scholar TO ls_stitch;
+GRANT USAGE ON SCHEMA public TO ls_stitch;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO ls_stitch;
+
+
+
 
 
 
