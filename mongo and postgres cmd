@@ -232,6 +232,22 @@ GRANT SELECT ON ALL TABLES IN SCHEMA public TO ls_stitch;
 
 
 
+To list database table size
+
+
+SELECT
+    table_schema || '.' || table_name AS table_full_name,
+    pg_size_pretty(pg_total_relation_size(table_schema || '.' || table_name)) AS total_size
+FROM
+    information_schema.tables
+WHERE
+    table_type = 'BASE TABLE'
+    AND table_schema NOT IN ('pg_catalog', 'information_schema')
+ORDER BY
+    pg_total_relation_size(table_schema || '.' || table_name) DESC;
+
+
+
 
 
 
