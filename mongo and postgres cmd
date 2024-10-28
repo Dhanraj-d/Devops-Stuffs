@@ -29,6 +29,9 @@ PGPASSWORD=Gltui4GGUQwJk/TYdwyxnG5H
 psql -h mb-pg-prod.cs5lqlbwyorh.ap-south-1.rds.amazonaws.com -p 5432 -U postgres -d postgres
 # pg_dump -h mb-pg-prod.cs5lqlbwyorh.ap-south-1.rds.amazonaws.com -U postgres -f kratos.sql kratos
 
+table dump 
+ pg_dump -h backup-db.cgveth26qa0v.ap-south-1.rds.amazonaws.com -U postgres -d leap_scholar -t directive_group -f directive_group.sql
+
 docker exec -i postgres /bin/bash -c "PGPASSWORD=UaTr0fMt24Jj psql -U postgres -p 5432 <DATABASE-TO-RESTORE>" < ./<DUMP-FILE>.sql
 
 
