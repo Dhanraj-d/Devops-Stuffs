@@ -14,3 +14,6 @@ db.job.find().sort({ createdAt: 1 }).limit(1);
 
 To get ride of old data and store only last 90 days data.
 
+db.job.deleteMany({
+  createdAt: { $lt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) }
+});
