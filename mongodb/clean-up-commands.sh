@@ -9,3 +9,8 @@ db.job.deleteMany({
 If you want to check the oldest document still present after deletion
 
 db.job.find().sort({ createdAt: 1 }).limit(1);
+
+
+
+To get ride of old data and store only last 90 days data.
+
