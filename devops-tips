@@ -18,3 +18,14 @@ A gentle reminder for DevOps engineers (you’ll thank me later):
 • Learn Storage before Stateful Sets. 
 • Learn Processes before Process Managers. 
 • Learn Systemd before Service Scaling. 
+
+
+↳ Learn the foundations before automating the world.
+
+and more...
+
+- Learn Operating Systems before Cloud Platforms (e.g., AWS, GCP). 
+- Learn Package Managers (e.g., apt, yum) before Configuration Management. 
+- Learn Manual Deployments before Infrastructure as Code (IaC). 
+- Learn Basic Security (e.g., permissions, users) before IAM Roles. 
+- Learn Regex before Log Parsing Tools.
