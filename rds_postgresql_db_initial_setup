@@ -99,3 +99,10 @@ pg_dump -Fd -j 8 -U postgres -h prod-leap-db.cgveth26qa0v.ap-south-1.rds.amazona
 
 
 
+
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO replicator;
+CREATE ROLE replicator;
+
+
+
+
