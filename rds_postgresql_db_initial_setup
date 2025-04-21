@@ -87,3 +87,15 @@ This setup ensures:
 - `ls_stitch`: Read-only access, both current and future tables
 - Proper schema and DB-level separation for roles
 
+
+
+
+pg_dump -Fd -j 8 -U <user> -d <dbname> -f /path/to/backup_dir
+pg_restore -Fd -j 8 -U <user> -d <dbname> /path/to/backup_dir
+
+pg_restore -Fd -j 16 -U postgres -d white_walker_restore -h production-leap-db.cgveth26qa0v.ap-south-1.rds.amazonaws.com /home/ubuntu/backup_dir
+
+pg_dump -Fd -j 8 -U postgres -h prod-leap-db.cgveth26qa0v.ap-south-1.rds.amazonaws.com -d white_walker -f /home/ubuntu/backup_dir
+
+
+
