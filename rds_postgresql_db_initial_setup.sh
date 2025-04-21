@@ -1,0 +1,89 @@
+### PostgreSQL RDS Role & Permission Setup for `leap_scholar` Database
+
+---
+
+#### 🔐 Create Roles (Users)
+```sql
+CREATE ROLE leap_scholar_user WITH LOGIN PASSWORD 'some_secure_password';
+```
+- Creates a new user `leap_scholar_user` who can login to the DB with a password.
+
+```sql
+CREATE ROLE ls_stitch WITH LOGIN PASSWORD 'another_secure_password';
+```
+- Creates another user `ls_stitch`, intended for read-only operations.
+
+---
+
+#### 🎯 Database-Level Permissions
+```sql
+GRANT CONNECT, TEMP ON DATABASE leap_scholar TO PUBLIC;
+```
+- Allows **all users** to connect to the `leap_scholar` DB and use temporary tables.
+
+```sql
+GRANT CONNECT, CREATE, TEMP ON DATABASE leap_scholar TO postgres;
+```
+- Gives the `postgres` user full DB-level access: connect, create objects, use temp tables.
+
+```sql
+GRANT CONNECT, CREATE, TEMP ON DATABASE leap_scholar TO leap_scholar_user;
+```
+- Grants `leap_scholar_user` permission to connect, create objects (e.g., tables), and use temp tables.
+
+```sql
+GRANT CONNECT ON DATABASE leap_scholar TO ls_stitch;
+```
+- Grants `ls_stitch` basic connect privilege (read-only setup continues below).
+
+---
+
+#### 🔄 Switch to Target Database
+```sql
+\c leap_scholar
+```
+- Changes active database session to `leap_scholar`.
+
+---
+
+#### 🏗️ Schema-Level Permissions (leap_scholar_user)
+```sql
+GRANT USAGE ON SCHEMA public TO leap_scholar_user;
+```
+- Grants permission to use objects in the `public` schema (but not access them yet).
+
+```sql
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO leap_scholar_user;
+```
+- Grants full DML privileges on all existing tables in `public` schema.
+
+```sql
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO leap_scholar_user;
+```
+- Ensures future tables in `public` will automatically grant DML access to `leap_scholar_user`.
+
+---
+
+#### 👀 Read-Only Schema-Level Permissions (ls_stitch)
+```sql
+GRANT USAGE ON SCHEMA public TO ls_stitch;
+```
+- Allows `ls_stitch` to access `public` schema and its objects.
+
+```sql
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO ls_stitch;
+```
+- Grants read-only access to all **existing** tables.
+
+```sql
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO ls_stitch;
+```
+- Ensures **future** tables will also be readable by `ls_stitch`.
+
+---
+
+This setup ensures:
+- `leap_scholar_user`: Full read-write access
+- `ls_stitch`: Read-only access, both current and future tables
+- Proper schema and DB-level separation for roles
+
