@@ -1,0 +1,18 @@
+# To disable subscription
+ALTER SUBSCRIPTION sub_leap_scholar DISABLE;
+# To drop subscription
+DROP SUBSCRIPTION sub_leap_scholar;
+# To check replication slot
+SELECT * FROM pg_subscription;
+
+
+
+CREATE SUBSCRIPTION sub_leap_scholar
+CONNECTION 'host=production-leap-db.cgveth26qa0v.ap-south-1.rds.amazonaws.com port=5432 dbname=leap_scholar user=replica password=bbbwebbjbjhew79'
+PUBLICATION pub_leap_scholar
+WITH (
+  copy_data = false,  -- Will copy the existing data
+  create_slot = true,
+  slot_name = 'sub_leap_scholar',
+  enabled = true
+);
