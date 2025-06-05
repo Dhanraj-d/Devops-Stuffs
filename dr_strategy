@@ -31,3 +31,40 @@ SELECT
 FROM 
     pg_replication_slots;
 
+
+
+#To monitor replica
+
+
+
+#!/bin/bash
+
+# PostgreSQL credentials
+PGHOST="localhost"
+PGPORT="5432"
+PGUSER="postgres"
+PGDATABASE="your_db_name"
+# Optional: export PGPASSWORD or use .pgpass for password
+# export PGPASSWORD="your_password"
+
+# Slack webhook URL
+SLACK_WEBHOOK_URL="https://hooks.slack.com/services/XXXX/YYYY/ZZZZ"
+
+# Get inactive replication slots
+INACTIVE_SLOTS=$(psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" -Atc "
+SELECT slot_name
+FROM pg_replication_slots
+WHERE slot_type = 'logical' AND active = false;
+")
+
+# If any inactive slots found, send Slack alert
+if [[ -n "$INACTIVE_SLOTS" ]]; then
+  MESSAGE="⚠️ *Inactive replication slots detected:*\n\`\`\`\n$INACTIVE_SLOTS\n\`\`\`"
+  curl -X POST -H 'Content-type: application/json' \
+    --data "{\"text\":\"$MESSAGE\"}" \
+    "$SLACK_WEBHOOK_URL"
+else
+  echo "[OK] All replication slots are active."
+fi
+
+
