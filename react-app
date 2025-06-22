@@ -1,0 +1,70 @@
+pipeline {
+    agent any
+
+    environment {
+        APP_NAME = "react-portfolio"
+        GIT_REPO = "https://github.com/bchiang7/v4.git"
+        BUILD_DIR = "out"
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                echo "Cloning open-source React site..."
+                git branch: 'main', url: "${GIT_REPO}"
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                echo "Installing Node.js dependencies..."
+                sh 'npm install'
+            }
+        }
+
+        stage('Build Website') {
+            steps {
+                echo "Building website using Next.js static export..."
+                sh 'npm run build && npm run export'
+            }
+        }
+
+        stage('Serve Locally') {
+            steps {
+                echo "Serving built site using npx serve..."
+                sh '''
+                    nohup npx serve -s ${BUILD_DIR} -l 3000 > server.log 2>&1 &
+                    sleep 5
+                '''
+            }
+        }
+
+        stage('Test Homepage') {
+            steps {
+                echo "Testing if homepage returns 200 OK..."
+                sh '''
+                    STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000)
+                    if [ "$STATUS_CODE" -ne 200 ]; then
+                        echo "Homepage test failed with status $STATUS_CODE"
+                        exit 1
+                    else
+                        echo "Homepage returned 200 OK"
+                    fi
+                '''
+            }
+        }
+
+        stage('Clean Up') {
+            steps {
+                echo "Stopping local web server..."
+                sh 'pkill -f "serve -s" || true'
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "✅ Jenkins pipeline complete for website test."
+        }
+    }
+}
