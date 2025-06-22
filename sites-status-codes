@@ -1,0 +1,64 @@
+.
+
+🌐 HTTP Status Code Categories
+Code Range	Type	Meaning
+1xx	Informational	Request received, still processing
+2xx	✅ Success	Request completed successfully
+3xx	🚦 Redirection	Further action (like redirect) required
+4xx	❌ Client Error	Problem with your request (browser side)
+5xx	🔥 Server Error	Problem on server side
+
+✅ Commonly Seen Status Codes
+✅ 2xx – Success
+Code	Meaning	Example
+200	OK	Page loaded normally
+201	Created	Resource created (e.g., POST done)
+204	No Content	Success but no response body
+
+🚦 3xx – Redirection
+Code	Meaning	Example
+301	Moved Permanently	/old → /new forever
+302	Found (Temporary Redirect)	Temporary redirection
+304	Not Modified	Use cached version
+
+🔁 Browsers auto-follow most 3xx redirects.
+
+❌ 4xx – Client Errors
+Code	Meaning	Example
+400	Bad Request	Broken syntax or missing data
+401	Unauthorized	Requires login/token
+403	Forbidden	You’re not allowed
+404	Not Found	Page doesn’t exist
+429	Too Many Requests	Rate limited (API spam)
+
+🔥 5xx – Server Errors
+Code	Meaning	Example
+500	Internal Server Error	Generic crash on backend
+502	Bad Gateway	Gateway/Proxy got invalid response
+503	Service Unavailable	Server down or overloaded
+504	Gateway Timeout	Upstream server didn’t respond
+
+🧪 Use in Jenkins Test (What to Expect)
+Response	curl Output	Your Action
+200	✅ Success	All good
+3xx	Maybe OK	Might follow redirect
+4xx	❌ Your side	Check URL or permissions
+5xx	❌ Server side	Infra/code team must check
+
+Let me know if you want to:
+
+Monitor specific status codes over time
+
+Handle 301/302 redirects smartly in scripts
+
+Or test APIs with curl and status-based logic
+
+This helps you monitor uptime and catch issues faster 🚦
+
+
+
+
+
+
+
+
