@@ -1,0 +1,29 @@
+pipeline {
+    agent any
+
+    environment {
+        TARGET_URL = "https://staging.leapscholar.com"
+    }
+
+    stages {
+        stage('Test External Website') {
+            steps {
+                echo "Testing ${TARGET_URL} for availability..."
+                sh '''
+                    STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${TARGET_URL})
+                    if [ "$STATUS" != "200" ]; then
+                      echo "❌ Site is down or returned status: $STATUS"
+                      exit 1
+                    fi
+                    echo "✅ Site is up. HTTP status: $STATUS"
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "✅ Website test pipeline completed."
+        }
+    }
+}
